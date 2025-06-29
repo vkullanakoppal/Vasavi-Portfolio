@@ -14,7 +14,7 @@ Before you begin, make sure you have the following installed:
 
 git clone https://github.com/vkullanakoppal/portfolio.git
 
-cd fake-news-detection
+cd housing-market-influence
 
 ### 3. Launch Jupyter Notebook
 
