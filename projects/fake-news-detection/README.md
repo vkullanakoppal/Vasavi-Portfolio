@@ -14,7 +14,7 @@ Before you begin, make sure you have the following installed:
 
 ### 2. Clone the Repository
 
-git clone https://github.com/vkullanakoppal/Vasavi-Portfolio.git
+git clone https://github.com/vkullanakoppal/portfolio.git
 
 cd fake-news-detection
 
