@@ -1,8 +1,11 @@
 
 # Machine Learning-Based Fake News Detection
 
-The proposed project will detect online news stories as fake or real depending on natural language processing and machine learning methods
-
+The project will detect online news stories as fake or real depending on natural language
+processing and machine learning methods. Misinformation and fake news compromise public
+health, influence elections, and undermine Public trust. This project intends to address the
+problem by creating a model capable of automatically detecting and tagging fake news articles,
+thus supporting fact-checkers, social platforms, and media agencies in detecting false content.
 
 ## Installation
 
