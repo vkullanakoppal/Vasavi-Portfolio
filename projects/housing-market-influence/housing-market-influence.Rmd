@@ -1,0 +1,169 @@
+---
+title: "housing-market-influence"
+author: "Vasavi Kullanakoppal"
+date: "2024-11-15"
+output: pdf_document
+classoption: landscape
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+# Load Data set
+boston_housing <- read.csv("BostonHousing.csv")
+
+# View the structure of the dataset
+str(boston_housing)
+# Check for missing values
+colSums(is.na(boston_housing))
+# Remove rows with missing values
+boston_housing <- na.omit(boston_housing)
+# Check for columns with all zeros
+zero_columns <- sapply(boston_housing, function(col) all(col == 0))
+zero_columns
+# Rename columns
+colnames(boston_housing) <- c("CrimeRate", "ResidentialZone", "IndustrialProportion", "CharlesRiver", "NitrogenOxideConcentration", 
+                              "AvgRooms", "AgeOfHome", "DistanceToEmployment", "HighwayAccess", "TaxRate", 
+                              "PupilTeacherRatio", "BlackPopulation", "LowerStatus", "MedianValue")
+
+# Create a new variable for high crime neighborhoods 
+boston_housing <- boston_housing %>% mutate(HighCrime = ifelse(CrimeRate > median(CrimeRate), "Yes", "No")) 
+# Create interaction term for pollution and industrial zones 
+boston_housing <- boston_housing %>% mutate(PollutionIndustry = NitrogenOxideConcentration * IndustrialProportion)
+
+head(boston_housing)
+
+# Filter homes that border the Charles River  
+river_homes <- boston_housing %>% filter(CharlesRiver == 1)  
+head (river_homes)
+# Group data by proximity to Charles River and calculate average prices  
+avg_price_by_river <- boston_housing %>% group_by(CharlesRiver) %>% summarize(AveragePrice = mean(MedianValue))
+avg_price_by_river
+# Mean and median prices based on proximity to the Charles River  
+mean_median_price_by_river <- boston_housing %>% group_by(CharlesRiver) %>% summarize(MeanPrice = mean(MedianValue), MedianPrice = median(MedianValue))
+mean_median_price_by_river
+# Calculate the median housing price by highway access 
+median_price_by_highway <- boston_housing %>% group_by(ResidentialZone) %>% summarize(MedianPrice = median(MedianValue))
+median_price_by_highway
+
+# a. For Crime Rates
+
+# Histogram for Crime Rate Distribution
+ggplot(boston_housing, aes(x = CrimeRate)) +
+  geom_histogram(bins = 30, color = "black", fill = "skyblue") +
+  labs(title = "Crime Rate Distribution", x = "Crime Rate")
+
+# Descriptive statistics for CRIM (Crime Rate per Capita)
+CrimeRate_stats <- boston_housing %>%
+  reframe(
+    mean_CrimeRate = mean(CrimeRate, na.rm = TRUE),
+    median_CrimeRate = median(CrimeRate, na.rm = TRUE),
+    sd_CrimeRate = sd(CrimeRate, na.rm = TRUE),
+    min_CrimeRate = min(CrimeRate, na.rm = TRUE),
+    max_CrimeRate = max(CrimeRate, na.rm = TRUE),
+    CrimeRate_quantiles = quantile(CrimeRate, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+  )
+
+print(CrimeRate_stats)
+
+# The average crime rate is around 3.65. The median crime rate is lower at 0.26. 
+# This indicates that the data is skewed which means most areas have a low crime rate, 
+# but there are a few with very high crime rates. 
+# The high standard deviation of 8.64 suggests the idea of outliers with exceptionally high crime rates. 
+# The lowest crime rate is 0.00632 and the maximum is 88.9762, which may be the outliers affecting the mean.  
+
+# b. For Charles River
+
+# Box plot for MEDV by Charles River
+ggplot(boston_housing, aes(x = factor(CharlesRiver), y = MedianValue)) +
+  geom_boxplot(fill = c("lightblue", "lightgreen")) +
+  labs(title = "Box Plot of Housing Prices by Proximity to Charles River",
+       x = "Proximity to Charles River (0 = Not Near, 1 = Near)",
+       y = "Median Housing Price") +
+  theme_minimal()
+
+# Summary table by proximity to Charles River 
+avg_price_by_river <- boston_housing %>% 
+  group_by(CharlesRiver) %>% 
+  summarize(MeanPrice = mean(MedianValue), MedianPrice = median(MedianValue), SDPrice = sd(MedianValue)) 
+
+# Descriptive statistics for Proximity to Charles River
+CharlesRiver_stats <- boston_housing %>%
+  group_by(CharlesRiver) %>%
+  summarize(count = n()) %>%
+  mutate(proportion = count / sum(count))
+print(CharlesRiver_stats)
+
+# There are 35 homes and only a small proportion of 6.9% of homes are located near the Charles River 
+# and 466 homes and majority of homes (93%) are situated away from the river. 
+# The box plot shows that the proximity to the Charles River has a positive influence on housing prices. 
+# Also, it shows that there is more variability in prices for homes near the river, 
+# possibly due to different property types or amenities. 
+
+# c. For Highway Access
+
+# Descriptive statistics for Accessibility to Highways
+HighwayAccess_stats <- boston_housing %>%
+  group_by(HighwayAccess) %>%
+  summarize(count = n()) %>%
+  mutate(proportion = count / sum(count))
+print(HighwayAccess_stats)
+
+# Box plot for MEDV by Highway Access
+ggplot(boston_housing, aes(x = factor(HighwayAccess), y = MedianValue)) +
+  geom_boxplot() +
+  labs(title = "Housing Price by Highway Access",
+       x = "Highway Access Level (HighwayAccess)",
+       y = "Median Housing Price (MedianValue)") +
+  theme_minimal()
+
+#Scatter plot with trend line
+ggplot(boston_housing, aes(x = HighwayAccess, y = MedianValue)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Scatter Plot of Highway Access vs. Housing Price",
+       x = "Highway Access Level",
+       y = "Housing Price") +
+  theme_minimal()
+
+# The scatter plot with a trend line shows a weak negative relationship 
+# between highway access level and median housing price, 
+# suggesting that homes closer to major highways tend to have slightly lower prices. 
+# However, the wide scatter of points indicates that this alone is not a strong predictor of housing prices, 
+# and other factors likely influence the variability observed. 
+
+
+# Multivariable Regression Analysis
+
+# Multiple regression model including Highway Access, Proximity of Charles River and Crime Rate to predict Median Value 
+
+model <- lm(MedianValue ~ HighwayAccess + CharlesRiver + CrimeRate, data = boston_housing) 
+summary(model) 
+
+# Residuals of -17.427 and 32.853 shows some variability in the model’s accuracy. 
+# The residuals of about -5 to +3 suggest reasonably consistent prediction accuracy within a typical range.  
+# With highway access and crime rate at zero and no proximity to the Charles River, 
+# the average predicted housing price is 25.48 units. 
+# Each unit increase in highway access is associated with a decrease in housing price by 0.2516 units. 
+# The p-value 4.07e-06 indicates this relationship is statistically significant. 
+# Being located near the Charles River is associated with an increase in housing prices by 5.7643. 
+# The p-value 7.68e-05 indicates this positive relationship is statistically significant as well. 
+# Each unit increase in the crime rate is associated with a decrease in housing prices by 0.2484. 
+# The p-value 7.05e-06 makes this a statistically significant predictor. 
+
+# Model Fit: 
+  
+# Residual Standard Error shows the model’s predictions are off by about 8.23 units. 
+# R-squared shows that about 21.01% of the variation in housing prices 
+# is explained by Highway Access, Charles River proximity, and Crime Rate combined. 
+# Adjusted R-squared of 0.2053 shows the model has some predictive power, 
+# though a large portion of housing price variability remains unexplained. 
+# The very low p-value < 2.2e-16 means that, collectively, 
+# the predictors significantly explain the variability in housing prices. 
+
+# Despite these significant relationships, the R-squared value of ~21% indicates 
+# that the model only captures a small portion of the variability in housing prices, 
+# suggesting that other factors are also important in determining housing values. 
+# Further modeling, potentially incorporating more variables, could improve the predictive power. 
+```
